@@ -1,0 +1,194 @@
+---
+title: "SpotifyScraperGitPersonal"
+author: "PernilleBrams"
+date: "7/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Working exploratively with Spotifyr
+Here, my ID credentials are hidden, but you can get your own and run the script yourself to explore. The Spotifyr materials can be found here www.rcharlie.com/spotifyr.
+
+### Libraries:
+For this project, we wll use a number of different libraries to extract and analyze the data. We also need to install the spotifyr package.
+```{r}
+library(pacman)
+p_load(dplyr, tidyr, readr, lubridate, stringr, spotifyr) # Spotifyr allows for extracting metadata for songs from Spotify
+```
+
+In order to use spotifyr, we need a client ID and client secret code from the developer site. These codes are not meant to be shown to the public and therefore we will set the codes to their respective variables beforehnd. The following code will set these values to System Environment variables SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET which will be used by the get_spotify_access_token() method present in every request we have with the package spotifyr. 
+```{r}
+# Client Id
+client_id <- "XXXXXXXXX"
+
+# Client secret
+client_secret <- "XXXXXXXXX"
+
+Sys.setenv(SPOTIFY_CLIENT_ID = client_id )
+Sys.setenv(SPOTIFY_CLIENT_SECRET = client_secret)
+access_token <- get_spotify_access_token()
+```
+
+### Retrieving data from playlist with sad/happy music: 
+```{r}
+sad_df <- get_playlist_audio_features("spotify", "6Vaie8DAZw5hbGaP5t6CZr", get_spotify_access_token()) #in the parenthesis is username (I just typed something), then spotify ID for the playlist, and then the token
+```
+
+### See all the possible variables
+```{r}
+colnames(sad_df) #getting all the possible variable names... lots of interesting ones to choose from
+```
+ [1] "playlist_id"                        "playlist_name"                     
+ [3] "playlist_img"                       "playlist_owner_name"               
+ [5] "playlist_owner_id"                  "danceability"                      
+ [7] "energy"                             "key"                               
+ [9] "loudness"                           "mode"                              
+[11] "speechiness"                        "acousticness"                      
+[13] "instrumentalness"                   "liveness"                          
+[15] "valence"                            "tempo"                             
+[17] "track.id"                           "analysis_url"                      
+[19] "time_signature"                     "added_at"                          
+[21] "is_local"                           "primary_color"                     
+[23] "added_by.href"                      "added_by.id"                       
+[25] "added_by.type"                      "added_by.uri"                      
+[27] "added_by.external_urls.spotify"     "track.artists"                     
+[29] "track.available_markets"            "track.disc_number"                 
+[31] "track.duration_ms"                  "track.episode"                     
+[33] "track.explicit"                     "track.href"                        
+[35] "track.is_local"                     "track.name"                        
+[37] "track.popularity"                   "track.preview_url"                 
+[39] "track.track"                        "track.track_number"                
+[41] "track.type"                         "track.uri"                         
+[43] "track.album.album_type"             "track.album.artists"               
+[45] "track.album.available_markets"      "track.album.href"                  
+[47] "track.album.id"                     "track.album.images"                
+[49] "track.album.name"                   "track.album.release_date"          
+[51] "track.album.release_date_precision" "track.album.total_tracks"          
+[53] "track.album.type"                   "track.album.uri"                   
+[55] "track.album.external_urls.spotify"  "track.external_ids.isrc"           
+[57] "track.external_urls.spotify"        "video_thumbnail.url"               
+[59] "key_name"                           "mode_name"                         
+[61] "key_mode"   
+
+### Subsetting variables we want right now
+```{r}
+sad_df_subset <- subset(sad_df, select = c("track.name", "key","key_name", "mode", "mode_name", "tempo", "energy", "instrumentalness", "loudness", "valence", "acousticness", "track.duration_ms"))
+
+```
+
+### Finding the saddest song (lowest valence)
+```{r}
+saddestsong <- sad_df_subset[which.min(sad_df_subset$valence),]
+saddestsong
+```
+
+PRØVER MED EN ANDEN PLAYLIST, LAVET AF SPOTIFY: 
+```{r}
+#define playlist uris: Melancholy instrumentals + Moody instrumentals + sad instrumentals + Sad songs (nogen med lyrics) + Alone Again (nogen med lyrics)
+playlist_uris <- c("37i9dQZF1DWZrc3lwvImLj", "51Hup5Kxx1OBkdMyAXYxpA", "6VlSyuiXNlCkLUCumyBr2k","37i9dQZF1DX7qK8ma5wgG1","37i9dQZF1DWX83CujKHHOn")
+
+
+
+#define df with new playlist: 
+#new_sad_df <- get_playlist_audio_features("spotify", "37i9dQZF1DWZrc3lwvImLj", get_spotify_access_token())
+df <- get_playlist_audio_features("spotify", playlist_uris, get_spotify_access_token()) #we get 396 songs
+
+#define subset
+df_sub <- subset(df, select = c("track.name", "key","key_name", "mode", "mode_name", "tempo", "energy", "instrumentalness", "loudness", "valence", "acousticness", "track.duration_ms"))
+saddestsong <- df_sub[which.min(df_sub$valence),]
+saddestsong
+
+
+
+#countries <
+
+list <- get_category_playlists('sad', country = 'US')
+
+get_category_playlists('mood', authorization = get_spotify_access_token(), include_meta_info = FALSE)
+
+https://api.spotify.com/v1/browse/categories/{category_id}
+
+
+```
+
+So:
+
+key: the estimated overall key of the track. Integers map to picthes using standard Pitch Class Notation, but we included te key name. 
+
+mode: the modality of a track, the type of scale from which its melodic content is derived. 
+
+acousticness: from 0-1 of whether the track is acoustic or not. 1 = high confidence that the track is aoustic. 
+
+energy: measure from 0-1 representing a perceptual measure of intensity and activity. Energetic tracks feel fast, loud, noisy. High energy track would be death metal, while Bach prelude has low scores in energy. 
+
+instrumentalness: whether a track contains vocals. *Since our playlist is insturmentals only*, the values should all be pretty close to one, which is greater likelihood of the track containing no vocal content. 
+
+valence: from 0-1 describing the musical positivenss. High valence track sound happier than low valence tracks. 
+
+tempo: estimated overall tempo in BPM. 
+
+
+
+
+
+
+
+
+
+
+```{r}
+```
+
+Spotify has playlists on site. We can scrape this data systematically by downloading the CSV files using the url: ????
+
+For this analysis, we will scrape data from the ???
+
+* spotify id: pernillebrams?si=xmVDiI2JR9WGhrHU7jtPZw *
+
+
+
+
+
+# What makes a song "happy"? Looking into happy instrumental songs' specifications 
+Searching for "happy" on Spotify and choosing playlists with only instrumental songs, we choose the five top playlists. 
+
+Playlist 1: happy instrumental by Elaine Du
+<iframe src="https://open.spotify.com/embed/playlist/5Iq05hg7E2871FUUfqx5Tj" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+
+Playlist 2: Happy Instrumental Pop by anemone
+<iframe src="https://open.spotify.com/embed/playlist/1Lrb7X3pDc62a6tRLEpCRQ" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+
+Playlist 3: Happy Piano Music Instrumental Love Songs
+<iframe src="https://open.spotify.com/embed/playlist/1I1SiilQndQt6yjiiPaiZM" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+
+Playlist 4: Background Happy Energetic Music for Working
+<iframe src="https://open.spotify.com/embed/playlist/35EesHj0cU0zNntl0qo9YM" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+
+Playlist 5: Happy Morning Music
+<iframe src="https://open.spotify.com/embed/playlist/4yKnrdMkp22E2XnmH5tI9n" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+
+### Defining playlist uris
+```{r}
+# Binding the five playlists' ID's
+playlist_uris <- c("5Iq05hg7E2871FUUfqx5Tj","1Lrb7X3pDc62a6tRLEpCRQ","1I1SiilQndQt6yjiiPaiZM","35EesHj0cU0zNntl0qo9YM","4yKnrdMkp22E2XnmH5tI9n")
+
+# Dataframe with the songs
+happy_df <- get_playlist_audio_features("spotify", playlist_uris, get_spotify_access_token()) #we get 340 songs
+
+# Subsetting variables we want
+happy_df_sub <- subset(happy_df, select = c("track.name", "track.artists", "key","key_name", "mode", "mode_name", "tempo", "energy", "instrumentalness", "loudness", "valence", "acousticness", "track.duration_ms"))
+
+# Filtering, so we only use songs that are rated more than 50% instrumental
+filtered_happy_df_sub <- filter(happy_df_sub, instrumentalness > 0.5)
+```
+
+## What is the happiest song? 
+```{r}
+happiestsong <- filtered_happy_df_sub[which.max(filtered_happy_df_sub$valence),]
+happiestsong
+```
+### The happiest song was... 
+"Best Day of My Life (Instrumental Version)").
